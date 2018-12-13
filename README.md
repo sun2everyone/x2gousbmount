@@ -1,5 +1,6 @@
 # x2gousbmount_gphoto
 Modification of x2go thinclient scripts to mount mmc cards and gphotofs (mtp cameras - canon etc.)
+Do not forget to backup everything!
 
 0. install `gphotofs`
 1. Modify `62-x2gogphotomount.rules` to add your camera using usb vendor id and model (look in lsusb)
