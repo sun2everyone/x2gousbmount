@@ -1,0 +1,15 @@
+# Rules for X2GO USB mount
+
+ACTION!="add", GOTO="x2gogphoto2_end"
+SUBSYSTEM!="usb", GOTO="x2gogphoto2_end"
+ENV{DEVTYPE}!="usb_device", GOTO="x2gogphoto2_end"
+
+#ENV{ID_USB_INTERFACES}=="", IMPORT{builtin}="usb_id"
+#ENV{ID_USB_INTERFACES}=="*:08*:*", GOTO="x2gogphoto2_end"
+#ENV{ID_USB_INTERFACES}=="*:060101:*", ENV{ID_GPHOTO2}="1", ENV{GPHOTO2_DRIVER}="PTP", MODE="0664", GROUP="plugdev", GOTO="x2gogphoto2_end"
+
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="04a9", ATTRS{idProduct}=="3226", ENV{ID_GPHOTO2}="1", ENV{GPHOTO2_DRIVER}="proprietary", MODE="0664", GROUP="plugdev", RUN+="/usr/lib/x2go/tce/x2gousbmount"
+
+LABEL="x2gogphoto2_end"
+
+ACTION=="remove",  SUBSYSTEM=="usb", ENV{ID_VENDOR_ID}=="04a9", ENV{ID_MODEL_ID}=="3226", RUN+="/usr/lib/x2go/tce/x2gousbmount" 

@@ -1,0 +1,7 @@
+[Unit]
+Description=Gphotofs mounter service
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/gphotofs %I -o allow_other
+

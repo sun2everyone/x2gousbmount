@@ -1,0 +1,4 @@
+# Rules for X2GO USB mount
+
+KERNEL=="mmc*p[0-9]", SUBSYSTEM=="block", ACTION=="add",    RUN+="/usr/lib/x2go/tce/x2gousbmount"
+KERNEL=="mmc*p[0-9]",             ACTION=="remove", RUN+="/usr/lib/x2go/tce/x2gousbmount"

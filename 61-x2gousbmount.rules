@@ -1,0 +1,7 @@
+# Rules for X2GO USB mount
+
+KERNEL=="sd?[0-9]", SUBSYSTEM=="block", ACTION=="add",    RUN+="/usr/lib/x2go/tce/x2gousbmount"
+KERNEL=="ub*", SUBSYSTEM=="block", ACTION=="add",    RUN+="/usr/lib/x2go/tce/x2gousbmount"
+KERNEL=="sd?[0-9]",             ACTION=="remove", RUN+="/usr/lib/x2go/tce/x2gousbmount"
+KERNEL=="ub*",             ACTION=="remove", RUN+="/usr/lib/x2go/tce/x2gousbmount"
+

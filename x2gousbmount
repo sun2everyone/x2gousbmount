@@ -1,0 +1,270 @@
+#!/usr/bin/perl
+
+# Copyright (C) 2007-2018 by X2Go project, https://wiki.x2go.org
+#       Oleksandr Shneyder <o.shneyder@phoca-gmbh.de>
+
+# X2Go is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# X2Go is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the
+# Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
+
+use strict;
+use File::Path::Expand;
+use Sys::Syslog qw( :standard :macros );
+
+my $user;
+if ( -f "/etc/x2go/x2gothinclient-minidesktop_start" ) {
+	# this is a minidesktop environment, which uses
+	# username "x2gothinclient" regardless of whether
+	# it runs on X2Go-TCE-Live or X2Go-TCE-NFS
+	$user='x2gothinclient';
+}
+elsif ( -d "/lib/live/config" ) {
+	# this is X2Go-TCE-Live, but not with a minidesktop
+	# (if it were, the first condition would have matched),
+	# so we use Debian-Live's standard username "user"
+	$user='user';
+}
+else {
+	# this is X2Go-TCE-NFS or something completely different,
+	# so we'll play it safe and pick the username "x2gothinclient"
+	# just like previous versions of this script did
+	$user='x2gothinclient';
+}
+
+# We need this as chown requires numeric uid/gid
+my ($login,$pass,$uid,$gid) = getpwnam($user);
+
+# Some last-ditch efforts to fulfill the prerequisites for File Sharing:
+# - This is stuff that should already have happened earlier in the boot process.
+# - Also, if a directory already exists, we silently assume that ownership and
+#   permissions are correct. This is so that users that deliberately set
+#   different ownership/permission values don't have their settings silently
+#   overwritten.
+
+unless ( -d expand_filename("~$user/mounts")) {
+	mkdir expand_filename("~$user/mounts");
+	chmod 0700, expand_filename("~$user/mounts");
+	chown $uid, $gid, expand_filename("~$user/mounts");
+}
+
+unless ( -d expand_filename("~$user/export")) {
+	mkdir expand_filename("~$user/export");
+	chmod 0700, expand_filename("~$user/export");
+	chown $uid, $gid, expand_filename("~$user/export");
+}
+
+unless ( -d expand_filename("~$user/logins")) {
+	mkdir expand_filename("~$user/logins");
+	chmod 0700, expand_filename("~$user/logins");
+	chown $uid, $gid, expand_filename("~$user/logins");
+}
+
+openlog($0,'cons,pid','user');
+setlogmask( LOG_UPTO(LOG_NOTICE) );
+
+sub check_x2gothinclientmode {
+	my $ret = 0;
+
+	# Check for x2gothinclientd first...
+	my $x=`ps ax | grep x2gothinclient`;
+	if ( $x=~m/thinclientd/ )
+	{
+		$ret = 1;
+	}
+
+	# And for x2goclient --thinclient if nothing was found.
+	if (!$ret) {
+		$x=`ps u -C x2goclient`;
+		if ( $x=~m/\W*--thinclient\W*/ )
+		{
+			$ret = 1;
+		}
+	}
+	return $ret;
+}
+
+if ( check_x2gothinclientmode() || ( -x "/etc/x2go/x2gothinclient-minidesktop_start" ) )
+{
+
+	open (F,">>/var/log/usb");
+
+	my $dev=$ENV{'DEVNAME'};
+	my $model=$ENV{'ID_MODEL'};
+	my $vendor=$ENV{'ID_VENDOR'};
+	my $action=$ENV{'ACTION'};
+	my @ldev=split("/","$dev");
+	my $ldev=@ldev[@ldev-1];
+	if ( $ENV{'ID_GPHOTO2'} eq 1 ) 
+	{
+		$ldev="001";
+		print F "gphoto device: $ldev \n";
+	}
+	# mntdir is not the directory where the mountpoint will be rooted,
+	# but where tracking of mount states takes place
+	my $mntdir;
+	if ( -d expand_filename("~$user/mounts")) {
+		$mntdir=expand_filename("~$user/mounts");
+	} elsif ( -d "/var/run" ) {
+		$mntdir="/var/run";
+	} elsif ( -d "/run" ) {
+		$mntdir="/run";
+	} else {
+		die "No directory found that we could use as \$mntdir..."
+	}
+
+	my $name="${vendor}_${model}";
+	$name=~s/ //g;
+	$name=~s/\\//g;
+	$name=~s/\///g;
+	print F "action: $action,  device: $dev, model: $model ($ldev), total: $name\n";
+	mkdir("/media");
+	mkdir("/media/$name");
+	print F "$name\n";
+
+	if ( $action eq "add")
+	{
+
+		###
+		### ACTION: mount device after it has been added to USB subsystem
+		###
+
+		syslog('notice', "device add action called");
+
+		# prepare mount points
+		mkdir("/media");
+		mkdir("/media/$name");
+		mkdir("/media/$name/$ldev");
+
+		# mount the USB device
+		# sync is supported by all file systems
+		# uid is supported by vfat (via fat),ntfs,hfs,hpfs
+		# uni_xlate is supported by vfat,ntfs
+		# we must not trigger on iso9660 and udf, or else hybrid USB media
+		# would only cause a mount of the iso9660 raw device,
+		# blocking the mount of individual partitions
+		# real optical media ->x2gocdmanager/x2gothinclient-cdmanager package
+		if(system("mount -tvfat,ntfs $dev /media/$name/$ldev -o uid=$user,sync,uni_xlate")==0)
+		{
+			syslog('notice', "USB device $name ($ldev) successfully mounted (probably vfat or ntfs)");
+			# if mounted, inform x2goclient about it...
+			system("touch $mntdir/$ldev.mounted");
+			open (D,">",expand_filename("~$user/export/$name.$ldev"));
+			print D "export=/media/$name/$ldev\n";
+			close (D);
+		}
+		elsif(system("mount -t hfs $dev /media/$name/$ldev -o uid=$user,sync")==0)
+		{
+			syslog('notice', "USB device $name ($ldev) successfully mounted (hfs detected)");
+			# if mounted, inform x2goclient about it...
+			system("touch $mntdir/$ldev.mounted");
+			open (D,">",expand_filename("~$user/export/$name.$ldev"));
+			print D "export=/media/$name/$ldev\n";
+			close (D);
+		}
+		elsif(system("mount -t hpfs $dev /media/$name/$ldev -o uid=$user,sync")==0)
+		{
+			syslog('notice', "USB device $name ($ldev) successfully mounted (hpfs detected)");
+			# if mounted, inform x2goclient about it...
+			system("touch $mntdir/$ldev.mounted");
+			open (D,">",expand_filename("~$user/export/$name.$ldev"));
+			print D "export=/media/$name/$ldev\n";
+			close (D);
+		}
+		# We use fuseext2 for read-only EXT* mounts since this driver does not
+		# check the usual file permission hierarchy and allows (read-only)
+		# access to any file on the file system.
+		elsif(system("fuseext2 $dev /media/$name/$ldev -o ro")==0)
+		{
+			syslog('notice', "USB device $name ($ldev) successfully mounted readonly (ext*fs detected)");
+			# if mounted, inform x2goclient about it...
+			system("touch $mntdir/$ldev.mounted");
+			open (D,">",expand_filename("~$user/export/$name.$ldev"));
+			print D "export=/media/$name/$ldev\n";
+			close (D);
+		}
+                elsif(system("systemctl start gphotofs@/media/$name/$ldev.service")==0)
+                {
+                        syslog('notice', "USB device $name ($ldev) successfully mounted (gphotofs)");
+                        # if mounted, inform x2goclient about it...
+                        system("touch $mntdir/$ldev.mounted");
+                        open (D,">",expand_filename("~$user/export/$name.$ldev"));
+                        print D "export=/media/$name/$ldev\n";
+                        close (D);
+                }
+		else
+		{
+			# the mount failed, let's assume that the device is encrypted...
+			my $enc=`ls -1 $mntdir | grep .encrypted`;
+			if(  $enc eq "" )
+			{
+				# use cryptsetup to decrypt the device...
+				system("/sbin/cryptsetup --key-file /etc/keys/keystick.key luksOpen $dev keystick");
+
+				# mount the ,,decrypted'' USB device via devmapper...
+				if(system("mount /dev/mapper/keystick  /media/$name/$ldev ")==0)
+				{
+					# inform x2goclient about this...
+					system("touch $mntdir/$ldev.encrypted");
+					system("chown -R $user /media/$name/$ldev/dsa.key");
+					open (D,">",expand_filename("~$user/logins/$name.$ldev"));
+					print D "login=/media/$name/$ldev\n";
+					close (D);
+				}
+				else
+				{
+					# on mount failures release the decrypted device again
+					system("/sbin/cryptsetup luksClose keystick");
+				}
+			}
+			else
+			{
+				print F "cryptodisk already present\n";
+			}
+		}
+	}
+	elsif ( $action eq "remove" )
+	{
+
+		###
+		### ACTION: unmount device after it has been removed from the USB subsystem
+		###
+
+		syslog('notice', "device remove action called");
+
+		# we rely on our own mount logistics here...
+		if ( -e "$mntdir/$ldev.mounted" )
+		{
+			# inform x2goclient that the device has been removed
+			system ("umount -ff /media/$name/$ldev");
+			unlink ("$mntdir/$ldev.mounted");
+			open ( D,">",expand_filename("~$user/export/$name.$ldev.unexport"));
+			print D "unexport=/media/$name/$ldev\n";
+			close (D);
+			syslog('notice', "USB device $name ($ldev) successfully unmounted");
+		}
+		elsif ( -e "$mntdir/$ldev.encrypted" )
+		{
+			# inform x2goclient that the device has been removed
+			# release the encrypted device mapping
+			unlink ("$mntdir/$ldev.encrypted");
+			open ( D,">",expand_filename("~$user/logins/$name.$ldev.unexport"));
+			print D "logout=/media/$name/$ldev\n";
+			system("umount /media/$name/$ldev");
+			system("/sbin/cryptsetup luksClose keystick");
+			close (D);
+		}
+	}
+
+	close (F);
+}
