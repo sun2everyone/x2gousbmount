@@ -12,6 +12,8 @@ Do not forget to backup everything you replace or change!
 
 TOFIX: encrypted cards forwarding won't work as systemctl start will always retrun 0.
 
+# x2gomatebindings locale (language) issue fix
+Bug is submitted here: http://bugs.x2go.org/cgi-bin/bugreport.cgi?bug=1424. 
 If you have problems with wrong locale in Mate (ex. english folder names instead of names in language set by locale) do on the server side:
 1. Create symlink for locales folder `cd /usr/local/share ; ln -s /usr/share/locale`
 2. Take correct file with full data for your locale from here https://github.com/mate-desktop/caja/tree/master/po 
@@ -19,20 +21,12 @@ If you have problems with wrong locale in Mate (ex. english folder names instead
 ```
 #: ../extension/caja-x2goumount.c:77 ../extension/caja-x2goumount.c:78
 msgid "Unmount SSHFS Drive"
-msgstr "Отмонтировать SSHFS"
+msgstr "Отмонтировать SSHFS устройство"
 ```
 4. Generate locale .mo file `msgfmt <yourlocale>.po -o x2goumount.mo` and put it on the server in `/usr/local/share/locale/<your_locale>/`
 
-*Alternatively you can build patched x2gomatebindings. You need to comment out  in file `extension/caja-x2goumount-module.c` following strings:
-```
-if(!bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR))
-        {
-              printf("failed bind domain %s %s\n",GETTEXT_PACKAGE, LOCALEDIR);
-        }
-        bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
-        textdomain(GETTEXT_PACKAGE); 
-```        
-You only need to replace `/lib/x86_64-linux-gnu/caja/extensions-2.0/libcaja-x2goumount.so` with built lib.       
+*Alternatively you can build patched x2gomatebindings. Use `x2gomatebindings_locale.patch`
+You only need to replace `/lib/x86_64-linux-gnu/caja/extensions-2.0/libcaja-x2goumount.so` with built lib. But all the changes wil be overwritten if the developers of x2go release new version, so for now suggested workaround is better than patching.       
         
 
 
