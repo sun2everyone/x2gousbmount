@@ -1,0 +1,25 @@
+diff --git a/extension/caja-x2goumount-module.c b/extension/caja-x2goumount-module.c
+index 9b31584..e32bc32 100644
+--- a/extension/caja-x2goumount-module.c
++++ b/extension/caja-x2goumount-module.c
+@@ -33,7 +33,6 @@ void caja_module_initialize (GTypeModule*module)
+ 	      printf("failed bind domain %s %s\n",GETTEXT_PACKAGE, LOCALEDIR);
+ 	}
+ 	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
+-	textdomain(GETTEXT_PACKAGE);
+ }
+ 
+ void caja_module_shutdown (void)
+diff --git a/extension/caja-x2goumount.c b/extension/caja-x2goumount.c
+index 714cda6..f60dde3 100644
+--- a/extension/caja-x2goumount.c
++++ b/extension/caja-x2goumount.c
+@@ -22,7 +22,7 @@
+  */
+ 
+ #include <config.h>
+-#include <glib/gi18n.h>
++#include <glib/gi18n-lib.h>
+ #include <string.h>
+ #include <caja/libcaja-extension/caja-extension-types.h>
+ #include <caja/libcaja-extension/caja-file-info.h>
