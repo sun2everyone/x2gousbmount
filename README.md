@@ -1,9 +1,9 @@
 # x2gousbmount_gphoto
-Modification of x2go thinclient scripts to mount mmc cards and gphotofs (mtp cameras - canon etc.)
+Modification of x2go thinclient scripts to mount mmc cards and gphotofs (mtp cameras - canon etc.) and android smartphones in camera (PTP) mode.
 Do not forget to backup everything you replace or change!
 
 0. install `gphotofs`
-1. Modify `62-x2gogphotomount.rules` to add your camera using usb vendor id and model (look in lsusb)
+1. Modify `62-x2gogphotomount.rules` to add your camera/phone using usb vendor id and model (look in lsusb)
 3. put udev rules in `/lib/udev/rules.d/` (replace is necessary as in other case you will get double mounts of mass storages)
 4. put `gphotofs@.service` in `/etc/systemd/system`
 5. replace `/usr/lib/x2go/tce/x2gousbmount` with file from repo
