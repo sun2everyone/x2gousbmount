@@ -26,7 +26,8 @@ msgstr "Отмонтировать SSHFS устройство"
 4. Generate locale .mo file `msgfmt <yourlocale>.po -o x2goumount.mo` and put it on the server in `/usr/local/share/locale/<your_locale>/`
 
 *Alternatively you can build patched x2gomatebindings. Use `x2gomatebindings_locale.patch`
-You only need to replace `/lib/x86_64-linux-gnu/caja/extensions-2.0/libcaja-x2goumount.so` with built lib. But all the changes wil be overwritten if the developers of x2go release new version, so for now suggested workaround is better than patching.       
+You only need to replace `/lib/x86_64-linux-gnu/caja/extensions-2.0/libcaja-x2goumount.so` with built lib. But all the changes wil be overwritten if the developers of x2go release new version, so for now suggested workaround is better than patching. 
+UPD: bug opened here https://bugs.x2go.org/cgi-bin/bugreport.cgi?bug=1424 patch submitted, hopefully will be fixed in 0.0.1.7 package version
         
 
 
